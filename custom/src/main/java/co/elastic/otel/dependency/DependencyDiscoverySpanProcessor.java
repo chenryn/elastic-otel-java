@@ -44,12 +44,12 @@ public class DependencyDiscoverySpanProcessor implements SpanProcessor {
       Logger.getLogger(DependencyDiscoverySpanProcessor.class.getName());
 
   private final ClasspathDependencyScanner scanner;
-  private final DependencySpanCreator spanCreator;
+  private DependencySpanCreator spanCreator;
   private final ExecutorService executorService;
   private final AtomicBoolean discoveryStarted = new AtomicBoolean(false);
   private final long discoveryDelayMillis;
   private final long discoveryIntervalMillis;
-  private final Tracer tracer;
+  private Tracer tracer;
 
   public DependencyDiscoverySpanProcessor() {
     this(
@@ -76,10 +76,39 @@ public class DependencyDiscoverySpanProcessor implements SpanProcessor {
     this.discoveryIntervalMillis = discoveryIntervalMillis;
   }
 
+  public DependencyDiscoverySpanProcessor(long discoveryDelayMillis, long discoveryIntervalMillis) {
+    this.tracer = null; // Will be lazily initialized
+    this.scanner = new ClasspathDependencyScanner();
+    this.purlGenerator = new PurlGenerator();
+    this.spanCreator = null; // Will be initialized when tracer is available
+    this.executorService =
+        Executors.newFixedThreadPool(
+            Math.min(4, Runtime.getRuntime().availableProcessors()),
+            r -> {
+              Thread thread = new Thread(r, "dependency-discovery");
+              thread.setDaemon(true);
+              return thread;
+            });
+    this.discoveryDelayMillis = discoveryDelayMillis;
+    this.discoveryIntervalMillis = discoveryIntervalMillis;
+  }
+
   private final PurlGenerator purlGenerator;
+
+  private synchronized void initializeTracer() {
+    if (tracer == null) {
+      tracer = io.opentelemetry.api.GlobalOpenTelemetry.getTracer("elastic-otel-dependency");
+      this.spanCreator = new DependencySpanCreator(tracer, purlGenerator);
+    }
+  }
 
   @Override
   public void onStart(Context parentContext, ReadWriteSpan span) {
+    // Initialize tracer lazily on first span
+    if (tracer == null) {
+      initializeTracer();
+    }
+
     // Trigger dependency discovery on first span if not already started
     if (discoveryStarted.compareAndSet(false, true)) {
       scheduleDiscovery();
@@ -132,6 +161,11 @@ public class DependencyDiscoverySpanProcessor implements SpanProcessor {
   /** Performs the actual dependency discovery and span creation. */
   private void performDiscovery() {
     try {
+      // Ensure tracer is initialized before use
+      if (tracer == null) {
+        initializeTracer();
+      }
+
       Set<DependencyInfo> dependencies = scanner.scanAllClassLoaders();
       logger.log(Level.INFO, "Creating spans for {0} discovered dependencies", dependencies.size());
 

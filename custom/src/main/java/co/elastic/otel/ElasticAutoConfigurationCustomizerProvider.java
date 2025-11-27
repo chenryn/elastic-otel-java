@@ -26,7 +26,6 @@ import co.elastic.otel.dynamicconfig.CentralConfig;
 import co.elastic.otel.logging.AgentLog;
 import com.google.auto.service.AutoService;
 import io.opentelemetry.api.common.AttributeKey;
-import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizer;
 import io.opentelemetry.sdk.autoconfigure.spi.AutoConfigurationCustomizerProvider;
 import io.opentelemetry.sdk.autoconfigure.spi.ConfigProperties;
@@ -93,26 +92,7 @@ public class ElasticAutoConfigurationCustomizerProvider
     autoConfiguration.addTracerProviderCustomizer(
         (providerBuilder, properties) -> {
           CentralConfig.init(providerBuilder, properties);
-
-          // Add dependency discovery span processor if enabled
-          if (properties.getBoolean("dependency.discovery.enabled", true)) {
-            long delaySeconds =
-                properties.getLong("dependency.discovery.delay.seconds", 5L);
-            long intervalHours =
-                properties.getLong("dependency.discovery.interval.hours", 6L);
-
-            long delayMillis = java.util.concurrent.TimeUnit.SECONDS.toMillis(delaySeconds);
-            long intervalMillis = java.util.concurrent.TimeUnit.HOURS.toMillis(intervalHours);
-
-            Tracer tracer = providerBuilder.build().get("otel-dependency");
-
-            co.elastic.otel.dependency.DependencyDiscoverySpanProcessor processor =
-                new co.elastic.otel.dependency.DependencyDiscoverySpanProcessor(
-                    tracer, delayMillis, intervalMillis);
-            providerBuilder.addSpanProcessor(processor);
-          }
           AgentLog.addSpanLoggingIfRequired(providerBuilder, properties);
-
           return providerBuilder;
         });
   }

@@ -19,7 +19,7 @@
 - [x] 实现PurlGenerator.java - PURL生成器
 - [x] 实现DependencySpanCreator.java - Span创建器
 - [x] 实现DependencyDiscoverySpanProcessor.java - Span处理器
-- [ ] 实现DependencyAutoConfiguration.java - 自动配置 (待实现)
+- [x] 实现DependencyAutoConfiguration.java - 自动配置
 - [x] 添加配置参数支持
 
 #### Week 3: 集成测试与优化 🔄
@@ -43,7 +43,7 @@
 - [x] `PurlGenerator.java` - PURL生成器
 - [x] `DependencySpanCreator.java` - Span创建器
 - [x] `DependencyDiscoverySpanProcessor.java` - Span处理器
-- [ ] `DependencyAutoConfiguration.java` - 自动配置 (待实现)
+- [x] `DependencyDiscoveryProcessorAutoConfig.java` - 自动配置
 
 #### 3. 配置集成
 - [x] 在 `ElasticAutoConfigurationCustomizerProvider` 中添加依赖发现模块
